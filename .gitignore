@@ -1,0 +1,55 @@
+# ==============================================================================
+# .gitignore — Internet Outage & Reliability Intelligence Platform (Version 2)
+# ==============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging & build
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# --- Node.js & React Frontend ---
+node_modules/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# --- Environment Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- Databases & Docker Mounts ---
+*.sqlite
+*.sqlite3
+*.db
+timescaledb_data/
+
+# --- OS & IDEs ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
