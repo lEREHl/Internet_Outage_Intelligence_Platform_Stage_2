@@ -59,29 +59,29 @@ Version 2 also introduces a **TimescaleDB time-partitioned hypertable**, **true 
 
 ```mermaid
 flowchart TD
-    subgraph ProbeAgent ["Python Telemetry Probe Agent (probe/probe.py)"]
-        P1["Probe Identity: blr-probe-01<br/>Location: Bangalore, IN"]
-        Checks["Multi-Protocol Checker<br/>• ICMP Ping & Loss<br/>• DNS Resolution<br/>• TCP Handshake<br/>• HTTP/HTTPS GET"]
+    subgraph ProbeAgent ["Python Telemetry Probe Agent"]
+        P1["Probe: blr-probe-01 in Bangalore"]
+        Checks["Multi-Protocol Checks: ICMP, DNS, TCP, HTTP"]
         P1 --> Checks
     end
 
-    subgraph BackendAPI ["FastAPI REST API (backend/main.py)"]
-        RegEp["POST /api/probe/register"]
-        IngestEp["POST /api/measurements"]
-        QueryEp["GET /api/analytics/timeseries<br/>GET /api/analytics/summary<br/>GET /api/analytics/percentiles<br/>GET /api/analytics/targets-health"]
+    subgraph BackendAPI ["FastAPI REST API"]
+        RegEp["Probe Register: POST /api/probe/register"]
+        IngestEp["Telemetry Ingestion: POST /api/measurements"]
+        QueryEp["Analytics Query Endpoints"]
     end
 
-    subgraph StorageLayer ["Persistence Layer (TimescaleDB / PostgreSQL)"]
-        ProbesTable[("probes table<br/>Probe metadata & heartbeats")]
-        TargetsTable[("targets table<br/>Monitored URLs & categories")]
-        MeasurementsHT[("measurements hypertable<br/>Partitioned by timestamp<br/>Composite time-series indexes")]
+    subgraph StorageLayer ["Persistence Layer"]
+        ProbesTable["probes table: metadata and heartbeats"]
+        TargetsTable["targets table: monitored URLs"]
+        MeasurementsHT["measurements hypertable: time-series metrics"]
     end
 
-    subgraph FrontendApp ["React 18 Dashboard (frontend/src/)"]
-        GlobalBanner["Global Health Indicator<br/>(Normal / Degraded / Outage)"]
-        KPIs["Summary KPI Cards<br/>(Uptime %, P50, P95, P99, Loss)"]
-        Charts["Time-Series Visualizations<br/>• Percentiles Area Chart<br/>• Protocol Breakdown Chart"]
-        Grids["Health Grids & Stream<br/>• Target Health Cards<br/>• Active Probes List<br/>• Telemetry Stream Table"]
+    subgraph FrontendApp ["React 18 Dashboard"]
+        GlobalBanner["Global Health Indicator"]
+        KPIs["Summary KPI Cards: Uptime, P50, P95, Loss"]
+        Charts["Recharts Visualizations"]
+        Grids["Target Health Grid and Telemetry Table"]
     end
 
     Checks -->|Auto-register on boot| RegEp
@@ -91,14 +91,14 @@ flowchart TD
     IngestEp --> MeasurementsHT
     IngestEp -->|Update heartbeat| ProbesTable
 
-    QueryEp <--> MeasurementsHT
-    QueryEp <--> ProbesTable
-    QueryEp <--> TargetsTable
+    QueryEp --> MeasurementsHT
+    QueryEp --> ProbesTable
+    QueryEp --> TargetsTable
 
-    GlobalBanner <--> QueryEp
-    KPIs <--> QueryEp
-    Charts <--> QueryEp
-    Grids <--> QueryEp
+    GlobalBanner --> QueryEp
+    KPIs --> QueryEp
+    Charts --> QueryEp
+    Grids --> QueryEp
 ```
 
 ---
@@ -107,14 +107,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    TargetURL["Target URL: https://github.com"] --> Parse["Extract Hostname & Port<br/>Host: github.com, Port: 443"]
+    TargetURL["Target URL: github.com"] --> Step1["1. DNS Lookup: measure dns_latency_ms"]
+    TargetURL --> Step2["2. TCP Handshake: measure tcp_latency_ms"]
+    TargetURL --> Step3["3. ICMP Ping: measure ping_ms and packet_loss_pct"]
+    TargetURL --> Step4["4. HTTP GET: measure http_latency_ms and status_code"]
 
-    Parse --> Step1["1. DNS Lookup<br/>socket.getaddrinfo()<br/>Measure dns_latency_ms"]
-    Parse --> Step2["2. TCP Handshake<br/>socket.connect(:443)<br/>Measure tcp_latency_ms"]
-    Parse --> Step3["3. ICMP Ping<br/>OS ping -n 3 / -c 3<br/>Measure ping_ms & packet_loss_pct"]
-    Parse --> Step4["4. HTTP GET<br/>requests.get()<br/>Measure http_latency_ms & status_code"]
-
-    Step1 --> Collect["Assemble Telemetry Object"]
+    Step1 --> Collect["Assemble Telemetry Payload"]
     Step2 --> Collect
     Step3 --> Collect
     Step4 --> Collect
@@ -132,36 +130,36 @@ erDiagram
     TARGETS ||--o{ MEASUREMENTS : "monitored by"
 
     PROBES {
-        varchar probe_id PK
-        varchar name
-        varchar location
-        varchar status
-        timestamptz last_heartbeat
-        timestamptz created_at
+        string probe_id PK
+        string name
+        string location
+        string status
+        string last_heartbeat
+        string created_at
     }
 
     TARGETS {
         int id PK
-        varchar name
-        text url UK
-        varchar category
+        string name
+        string url UK
+        string category
         boolean is_active
-        timestamptz created_at
+        string created_at
     }
 
     MEASUREMENTS {
-        bigserial id
-        timestamptz timestamp PK
-        varchar probe_id FK
-        text target
-        double http_latency_ms
-        double dns_latency_ms
-        double tcp_latency_ms
-        double ping_latency_ms
-        double packet_loss_pct
+        bigint id
+        string timestamp PK
+        string probe_id FK
+        string target
+        float http_latency_ms
+        float dns_latency_ms
+        float tcp_latency_ms
+        float ping_latency_ms
+        float packet_loss_pct
         int status_code
         boolean success
-        text error_message
+        string error_message
     }
 ```
 
@@ -173,11 +171,11 @@ erDiagram
 flowchart TD
     RawRow["Incoming Ingestion: POST /api/measurements"] --> WriteDB["Insert into measurements Hypertable"]
 
-    WriteDB --> TimeQuery["Query Request: GET /api/analytics/timeseries?minutes=60"]
+    WriteDB --> TimeQuery["Query Request: GET /api/analytics/timeseries"]
     
-    TimeQuery --> Bucket["Epoch Time-Bucket Calculation<br/>floor(epoch(timestamp) / interval) * interval"]
-    Bucket --> Agg["Aggregate Metrics<br/>• AVG(http_latency_ms)<br/>• AVG(dns_latency_ms)<br/>• AVG(tcp_latency_ms)<br/>• AVG(packet_loss_pct)<br/>• Uptime %"]
-    Bucket --> P95["Percentile Calculation<br/>percentile_cont(0.95) WITHIN GROUP (ORDER BY http_latency_ms)"]
+    TimeQuery --> Bucket["Epoch Time-Bucket Calculation: interval window"]
+    Bucket --> Agg["Aggregate Metrics: AVG latencies, Loss %, Uptime %"]
+    Bucket --> P95["Percentile Calculation: percentile_cont 0.95"]
 
     Agg --> Downsample["Downsampled Series Formatted for Recharts"]
     P95 --> Downsample
@@ -190,15 +188,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    App["App.jsx<br/>(Manages timeWindow, selectedTarget, autoRefresh, and polling)"]
+    App["App.jsx: Root State, Polling and Time-Window"]
     
-    App --> GH["GlobalHealthCard.jsx<br/>• Normal / Degraded / Outage status<br/>• Active probes & target counters"]
-    App --> KPI["KPI Cards Grid<br/>• Availability Uptime %<br/>• P50 Median Latency<br/>• P95 Tail Latency<br/>• P99 Outlier Latency<br/>• Packet Loss %"]
-    App --> TG["TargetHealthGrid.jsx<br/>• Individual target cards<br/>• Per-target Uptime, P95, Loss<br/>• Click to filter target"]
-    App --> C1["LatencyPercentilesChart.jsx<br/>• Recharts Area Chart<br/>• P95 vs Avg Latency vs Uptime"]
-    App --> C2["ProtocolBreakdownChart.jsx<br/>• Recharts Line Chart<br/>• DNS vs TCP vs HTTP vs Loss"]
-    App --> TT["TelemetryTable.jsx<br/>• Live scrolling log table<br/>• Status pills & error diagnostics"]
-    App --> PL["ProbesList.jsx<br/>• Probe node names, locations, heartbeats"]
+    App --> GH["GlobalHealthCard.jsx: Operational Status Banner"]
+    App --> KPI["KPI Cards Grid: Uptime, P50, P95, P99, Packet Loss"]
+    App --> TG["TargetHealthGrid.jsx: Target Cards and Filter Trigger"]
+    App --> C1["LatencyPercentilesChart.jsx: P95 and Avg Latency Area Chart"]
+    App --> C2["ProtocolBreakdownChart.jsx: Protocol Decomposition Lines"]
+    App --> TT["TelemetryTable.jsx: Live Telemetry Stream Table"]
+    App --> PL["ProbesList.jsx: Active Probes and Heartbeats Panel"]
 ```
 
 ---

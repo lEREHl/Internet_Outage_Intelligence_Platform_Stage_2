@@ -1,6 +1,6 @@
 # 🌐 Internet Outage & Reliability Intelligence Platform — Stage 2
 
-> **Stage 2: Real Time-Series System** — A distributed multi-protocol telemetry and internet reliability platform featuring TimescaleDB / PostgreSQL time-series architecture, latency percentiles ($P_{50}, P_{90}, P_{95}, P_{99}$), DNS/TCP/HTTP latency decomposition, ICMP packet loss tracking, probe heartbeats, and an interactive React dashboard.
+> **Stage 2: Real Time-Series System** — A distributed multi-protocol telemetry and internet reliability platform featuring TimescaleDB / PostgreSQL time-series architecture, latency percentiles (`P50`, `P90`, `P95`, `P99`), DNS/TCP/HTTP latency decomposition, ICMP packet loss tracking, probe heartbeats, and an interactive React dashboard.
 
 ---
 
@@ -37,8 +37,8 @@ In **Stage 1 (MVP)**, the system performed basic HTTP ping checks against three 
 | **Telemetry Depth** | HTTP response time only | **4-Layer Protocol Decomposition**: DNS resolution time, TCP connection handshake, ICMP ping latency & packet loss %, HTTP latency & status |
 | **Data Architecture** | Single flat measurements table | **Decoupled Architecture**: Domain tables (`probes`, `targets`) separated from high-throughput time-series `measurements` |
 | **Time-Series Storage** | Standard relational table | **TimescaleDB Hypertable** partitioning with automated indexing and fallback for vanilla PostgreSQL |
-| **Analytics Engine** | Arithmetic average | **Percentile Analytics**: True $P_{50}$ (median), $P_{90}$, $P_{95}$, and $P_{99}$ tail latency metrics |
-| **Time Windows** | Last $N$ records only | **Dynamic Time-Window Filtering**: Downsampled historical aggregations (15 mins, 1 hour, 6 hours, 24 hours) |
+| **Analytics Engine** | Arithmetic average | **Percentile Analytics**: True `P50` (median), `P90`, `P95`, and `P99` tail latency metrics |
+| **Time Windows** | Last N records only | **Dynamic Time-Window Filtering**: Downsampled historical aggregations (15 mins, 1 hour, 6 hours, 24 hours) |
 | **Probe Management** | Anonymous pings | **Probe Registration & Heartbeats**: Node registration, geographic locations, and alive status |
 | **Frontend UI** | Basic line chart | **Comprehensive Observability Suite**: Global health banner, latency percentile area charts, protocol breakdown comparisons, target health grid |
 
@@ -48,24 +48,29 @@ In **Stage 1 (MVP)**, the system performed basic HTTP ping checks against three 
 
 ```mermaid
 flowchart TD
-    subgraph Probe Layer [Distributed Probes]
-        P1[blr-probe-01<br/>Bangalore] -->|ICMP / DNS / TCP / HTTP| Targets[(Monitored Targets<br/>Google, GitHub, Cloudflare, AWS, YouTube)]
+    subgraph ProbeLayer ["Distributed Probes Fleet"]
+        P1["blr-probe-01 - Bangalore"]
+        Targets["Monitored Targets: Google, GitHub, Cloudflare, AWS, YouTube"]
+        P1 -->|ICMP, DNS, TCP, HTTP| Targets
         P1 -->|POST /api/measurements| API
         P1 -->|POST /api/probe/register| API
     end
 
-    subgraph Backend Layer [FastAPI API Engine]
-        API[FastAPI Application Server]
-        API -->|Read / Write| PG[(TimescaleDB / PostgreSQL)]
+    subgraph BackendLayer ["FastAPI Application Engine"]
+        API["FastAPI REST Server"]
     end
 
-    subgraph Storage Layer [Time-Series Storage]
-        PG --> AppData[Relational Tables<br/>• probes<br/>• targets]
-        PG --> TSData[Measurements Hypertable<br/>• timestamp (Partition Key)<br/>• DNS / TCP / HTTP / Loss<br/>• P50 / P95 / P99 rollups]
+    subgraph StorageLayer ["Persistence Layer"]
+        PG["PostgreSQL or TimescaleDB"]
+        AppData["Relational Tables: probes, targets"]
+        TSData["Measurements Hypertable: time-series metrics"]
+        API -->|Read and Write| PG
+        PG --> AppData
+        PG --> TSData
     end
 
-    subgraph Visualization Layer [React Dashboard]
-        UI[React 18 + Recharts SPA]
+    subgraph VisualizationLayer ["React Observability Dashboard"]
+        UI["React 18 SPA - Recharts"]
         UI -->|GET /api/analytics/summary| API
         UI -->|GET /api/analytics/timeseries| API
         UI -->|GET /api/analytics/targets-health| API
